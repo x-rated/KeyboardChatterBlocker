@@ -1,4 +1,4 @@
-name: Build Chat‑Blocker
+name: Build Chat-Blocker
 
 on:
   push:
@@ -11,14 +11,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup Visual Studio
+      - name: Setup MSVC x64
         uses: ilammy/msvcsetup@v1
         with:
           arch: x64
+          vs-version: '2022'   # explicitně VS 2022
 
-      - name: Compile Win64 EXE
+      - name: Compile KbChatterBlocker
         run: |
-          cl /EHsc /Fe:KbChatterBlocker.exe KbChatterBlocker.cpp
+          cl /EHsc /MD /nologo /W3 /Fe:KbChatterBlocker.exe KbChatterBlocker.cpp /link /SUBSYSTEM:WINDOWS
 
       - name: Upload EXE
         uses: actions/upload-artifact@v3
