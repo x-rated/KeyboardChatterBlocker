@@ -8,11 +8,11 @@
 
 // Configuration
 const int INITIAL_CHATTER_THRESHOLD_MS = 100;
-const int REPEAT_CHATTER_THRESHOLD_MS = 30;   // Increased from 15 for smoother hold
-const int REPEAT_TRANSITION_DELAY_MS = 150;   // Reduced from 200 for faster repeat activation
-const int MIN_RELEASE_DURATION_MS = 20;       
-const int MIN_HELD_DURATION_MS = 25;
-const int ABSOLUTE_MINIMUM_MS = 40;           // Block ANYTHING faster than this (obvious chatter)
+const int REPEAT_CHATTER_THRESHOLD_MS = 30;
+const int REPEAT_TRANSITION_DELAY_MS = 150;
+const int MIN_RELEASE_DURATION_MS = 15;
+const int MIN_HELD_DURATION_MS = 40;
+const int ABSOLUTE_MINIMUM_MS = 85;          // Block everything faster than 85ms
 
 struct KeyState {
     long long lastPressTime = 0;
@@ -79,7 +79,8 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
         long long timeSinceRelease = currentTime - state.lastReleaseTime;
         long long keyHeldDuration = state.lastReleaseTime - state.lastPressTime;
 
-        // ABSOLUTE CHATTER BLOCK: anything faster than 40ms is definitely chatter
+        // ABSOLUTE CHATTER BLOCK: anything faster than 85ms is definitely chatter
+        // Based on your typing, intentional double-taps are 95ms+ 
         if (timeSincePress < ABSOLUTE_MINIMUM_MS) {
             state.blockedCount++;
             totalBlocked++;
@@ -94,9 +95,12 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
         // STRATEGY: Distinguish between chatter and intentional double-tap
         // 
         // For speeds 40-100ms, check if it looks intentional:
+        //   - MOST IMPORTANT: Key was held solidly (40ms+) - this is the key indicator!
         //   - Key was properly released
-        //   - Held for reasonable time (25ms+)
-        //   - Has a gap after release (20ms+)
+        //   - Has some gap after release (15ms+) - can be short for fast typing
+        //
+        // Chatter pattern: weak hold (20-35ms), longer gaps (30-50ms) from bouncing
+        // Intentional pattern: solid hold (40-60ms), shorter gaps (15-30ms) from deliberate typing
 
         bool wasProperlyReleased = state.lastReleaseTime > state.lastPressTime;
         bool wasHeldLongEnough = keyHeldDuration >= MIN_HELD_DURATION_MS;
