@@ -12,7 +12,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     {
         KBDLLHOOKSTRUCT* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
 
-        // ignoruj opakované stisky při držení klávesy (auto-repeat)
+        // ignoruj opakované stisky při držení klávesy
         if (kb->flags & LLKHF_REPEAT)
             return CallNextHookEx(g_hook, nCode, wParam, lParam);
 
