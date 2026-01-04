@@ -171,6 +171,29 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
         bool isKeyDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
         
+        // Check if Ctrl is held (for testing intentional double-taps)
+        bool ctrlHeld = (GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0;
+        
+        if (ctrlHeld && isKeyDown && vkCode != VK_CONTROL) {
+            // Log this as an intentional test press
+            KeyState& state = keyStates[vkCode];
+            long long currentTime = GetCurrentTimeMs();
+            
+            if (state.lastPressTime > 0) {
+                long long timeSincePress = currentTime - state.lastPressTime;
+                long long timeSinceRelease = currentTime - state.lastReleaseTime;
+                long long keyHeldDuration = state.lastReleaseTime - state.lastPressTime;
+                
+                std::wstring testLog = L"[TEST-INTENTIONAL] VK" + std::to_wstring(vkCode) + 
+                                       L" | P→P:" + std::to_wstring(timeSincePress) + 
+                                       L"ms | Held:" + std::to_wstring(keyHeldDuration) + 
+                                       L"ms | Gap:" + std::to_wstring(timeSinceRelease) + L"ms";
+                LogToFile(testLog);
+            }
+            
+            state.lastPressTime = currentTime;
+        }
+        
         if (ShouldBlockKey(vkCode, isKeyDown)) {
             return 1;
         }
