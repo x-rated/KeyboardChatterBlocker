@@ -8,10 +8,11 @@
 
 // Configuration
 const int INITIAL_CHATTER_THRESHOLD_MS = 100;
-const int REPEAT_CHATTER_THRESHOLD_MS = 15;
-const int REPEAT_TRANSITION_DELAY_MS = 200;
-const int MIN_RELEASE_DURATION_MS = 25;       // Minimum time key must be released for intentional tap
-const int MIN_HELD_DURATION_MS = 30;          // Minimum time key must be held for intentional tap
+const int REPEAT_CHATTER_THRESHOLD_MS = 30;   // Increased from 15 for smoother hold
+const int REPEAT_TRANSITION_DELAY_MS = 150;   // Reduced from 200 for faster repeat activation
+const int MIN_RELEASE_DURATION_MS = 20;       
+const int MIN_HELD_DURATION_MS = 25;
+const int ABSOLUTE_MINIMUM_MS = 40;           // Block ANYTHING faster than this (obvious chatter)
 
 struct KeyState {
     long long lastPressTime = 0;
@@ -78,41 +79,31 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
         long long timeSinceRelease = currentTime - state.lastReleaseTime;
         long long keyHeldDuration = state.lastReleaseTime - state.lastPressTime;
 
+        // ABSOLUTE CHATTER BLOCK: anything faster than 40ms is definitely chatter
+        if (timeSincePress < ABSOLUTE_MINIMUM_MS) {
+            state.blockedCount++;
+            totalBlocked++;
+            std::wstring status = L"✗ BLOCKED #" + std::to_wstring(totalBlocked) + 
+                                 L" VK" + std::to_wstring(vkCode) + 
+                                 L" | P→P:" + std::to_wstring(timeSincePress) + 
+                                 L"ms | ABSOLUTE-MINIMUM (chatter too fast)";
+            UpdateStatus(status);
+            return true;
+        }
+
         // STRATEGY: Distinguish between chatter and intentional double-tap
         // 
-        // Chatter characteristics:
-        //   - Very short hold duration (key barely pressed, like 5-15ms)
-        //   - Very short or no gap between release and next press
-        //   - Erratic, unintentional bouncing
-        //   - Even with "reasonable" timings, total time is suspiciously fast (50-90ms)
-        //
-        // Intentional double-tap characteristics:
-        //   - Reasonable hold duration (finger actually pressed, 30-80ms)
-        //   - Clear gap after release (finger lifted and pressed again, 25-50ms)
-        //   - Deliberate rhythm
-        //   - Total time usually 100ms+ OR very deliberate with good hold+gap
+        // For speeds 40-100ms, check if it looks intentional:
+        //   - Key was properly released
+        //   - Held for reasonable time (25ms+)
+        //   - Has a gap after release (20ms+)
 
         bool wasProperlyReleased = state.lastReleaseTime > state.lastPressTime;
         bool wasHeldLongEnough = keyHeldDuration >= MIN_HELD_DURATION_MS;
         bool hasProperGap = timeSinceRelease >= MIN_RELEASE_DURATION_MS;
         
-        // For fast double-taps (under 100ms), require BOTH excellent hold AND excellent gap
-        // to avoid mistaking chatter for intentional input
-        bool looksIntentional = false;
-        
-        if (timeSincePress >= INITIAL_CHATTER_THRESHOLD_MS) {
-            // Over 100ms - definitely not chatter, allow it
-            looksIntentional = true;
-        } else if (wasProperlyReleased && wasHeldLongEnough && hasProperGap) {
-            // Under 100ms but has good characteristics
-            // Require STRONG signals for both hold and gap
-            bool strongHold = keyHeldDuration >= 40;  // Must be held solidly
-            bool strongGap = timeSinceRelease >= 35;   // Must have clear gap
-            
-            if (strongHold && strongGap) {
-                looksIntentional = true;
-            }
-        }
+        // If key was properly released with good hold and gap, it's intentional
+        bool looksIntentional = wasProperlyReleased && wasHeldLongEnough && hasProperGap;
         
         // If this looks like an intentional double-tap, allow it
         if (looksIntentional) {
