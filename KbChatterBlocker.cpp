@@ -11,6 +11,11 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
     if (nCode == HC_ACTION && wParam == WM_KEYDOWN)
     {
         KBDLLHOOKSTRUCT* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
+
+        // ignoruj opakované stisky při držení klávesy (auto-repeat)
+        if (kb->flags & LLKHF_REPEAT)
+            return CallNextHookEx(g_hook, nCode, wParam, lParam);
+
         DWORD key = kb->vkCode;
         DWORD now = GetTickCount();
 
