@@ -1,9 +1,15 @@
 #include <windows.h>
 #include <unordered_map>
 
-constexpr DWORD CHATTER_THRESHOLD_MS = 100;
+constexpr double CHATTER_THRESHOLD_MS = 100.0;
 
-std::unordered_map<USHORT, DWORD> lastPressTime;
+struct KeyTime {
+    LARGE_INTEGER lastPress;
+};
+
+HINSTANCE g_hInst = nullptr;
+std::unordered_map<USHORT, KeyTime> lastPressTime;
+LARGE_INTEGER freq;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -26,14 +32,21 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
                 // ignoruj uvolnění klávesy
                 if (!(flags & RI_KEY_BREAK))
                 {
-                    DWORD now = GetTickCount();
+                    LARGE_INTEGER now;
+                    QueryPerformanceCounter(&now);
+
                     auto it = lastPressTime.find(key);
-                    if (it != lastPressTime.end() && now - it->second < CHATTER_THRESHOLD_MS)
+                    if (it != lastPressTime.end())
                     {
-                        free(raw);
-                        return 0; // blokuj chatter
+                        double elapsedMs = (double)(now.QuadPart - it->second.lastPress.QuadPart) * 1000.0 / (double)freq.QuadPart;
+                        if (elapsedMs < CHATTER_THRESHOLD_MS)
+                        {
+                            free(raw);
+                            return 0; // blokuj chatter
+                        }
                     }
-                    lastPressTime[key] = now;
+
+                    lastPressTime[key].lastPress = now;
                 }
             }
         }
@@ -46,6 +59,9 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
 {
+    g_hInst = hInst;
+    QueryPerformanceFrequency(&freq);
+
     WNDCLASS wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInst;
