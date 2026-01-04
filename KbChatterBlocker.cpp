@@ -6,6 +6,7 @@
 const int INITIAL_CHATTER_THRESHOLD_MS = 81;  // Strict threshold for first repeat
 const int REPEAT_CHATTER_THRESHOLD_MS = 15;   // Lenient threshold for subsequent repeats
 const int REPEAT_TRANSITION_DELAY_MS = 200;   // Time to switch to repeat mode
+const int MIN_RELEASE_DURATION_MS = 20;       // Minimum time key must be released to be intentional
 
 struct KeyState {
     long long lastPressTime = 0;
@@ -36,6 +37,17 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
         }
 
         long long timeSincePress = currentTime - state.lastPressTime;
+        long long timeSinceRelease = currentTime - state.lastReleaseTime;
+
+        // Check if this is an intentional double-tap
+        // If the key was released for a reasonable duration, it's intentional
+        if (state.lastReleaseTime > state.lastPressTime && 
+            timeSinceRelease >= MIN_RELEASE_DURATION_MS) {
+            // This is an intentional double-tap, allow it
+            state.lastPressTime = currentTime;
+            state.inRepeatMode = false;  // Reset repeat mode
+            return false;
+        }
 
         // Determine which threshold to use
         int threshold;
