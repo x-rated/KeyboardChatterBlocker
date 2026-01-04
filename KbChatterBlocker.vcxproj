@@ -20,6 +20,7 @@
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
     <WholeProgramOptimization>true</WholeProgramOptimization>
+    <OutDir>$(SolutionDir)Release\x64\</OutDir>
   </PropertyGroup>
 
   <ItemGroup>
