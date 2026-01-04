@@ -2,6 +2,9 @@
 #include <unordered_map>
 #include <chrono>
 #include <string>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
 
 // Configuration
 const int INITIAL_CHATTER_THRESHOLD_MS = 100;
@@ -22,6 +25,28 @@ HHOOK hHook = NULL;
 HWND hStatusWindow = NULL;
 HWND hStatusText = NULL;
 int totalBlocked = 0;
+std::ofstream logFile;
+
+void LogToFile(const std::wstring& message) {
+    if (!logFile.is_open()) {
+        logFile.open("C:\\KbChatterBlocker_log.txt", std::ios::app);
+    }
+    
+    if (logFile.is_open()) {
+        SYSTEMTIME st;
+        GetLocalTime(&st);
+        
+        char timeStr[64];
+        sprintf_s(timeStr, "[%02d:%02d:%02d.%03d] ", st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+        
+        logFile << timeStr;
+        
+        // Convert wstring to string for logging
+        std::string str(message.begin(), message.end());
+        logFile << str << std::endl;
+        logFile.flush();
+    }
+}
 
 long long GetCurrentTimeMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -33,6 +58,7 @@ void UpdateStatus(const std::wstring& message) {
     if (hStatusText) {
         SetWindowText(hStatusText, message.c_str());
     }
+    LogToFile(message);
 }
 
 bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
@@ -221,6 +247,18 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     ShowWindow(hStatusWindow, nCmdShow);
     UpdateWindow(hStatusWindow);
 
+    // Initialize log file
+    logFile.open("C:\\KbChatterBlocker_log.txt", std::ios::trunc);
+    if (logFile.is_open()) {
+        logFile << "=== Keyboard Chatter Blocker Log ===" << std::endl;
+        logFile << "Initial Threshold: " << INITIAL_CHATTER_THRESHOLD_MS << "ms" << std::endl;
+        logFile << "Repeat Threshold: " << REPEAT_CHATTER_THRESHOLD_MS << "ms" << std::endl;
+        logFile << "Min Held Duration: " << MIN_HELD_DURATION_MS << "ms" << std::endl;
+        logFile << "Min Release Duration: " << MIN_RELEASE_DURATION_MS << "ms" << std::endl;
+        logFile << "=====================================" << std::endl << std::endl;
+        logFile.flush();
+    }
+
     // Install keyboard hook
     hHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, NULL, 0);
     
@@ -243,6 +281,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Cleanup
     if (hHook) {
         UnhookWindowsHookEx(hHook);
+    }
+    
+    if (logFile.is_open()) {
+        logFile << std::endl << "=== Session ended ===" << std::endl;
+        logFile.close();
     }
 
     return 0;
