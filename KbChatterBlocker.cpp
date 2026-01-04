@@ -101,10 +101,21 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
+    // Create a named mutex so we can verify the app is running
+    // Also prevents multiple instances
+    HANDLE hMutex = CreateMutex(NULL, TRUE, L"KbChatterBlockerMutex");
+    if (GetLastError() == ERROR_ALREADY_EXISTS) {
+        // Another instance is already running
+        CloseHandle(hMutex);
+        return 0;
+    }
+
     // Install keyboard hook
     hHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, NULL, 0);
     
     if (hHook == NULL) {
+        ReleaseMutex(hMutex);
+        CloseHandle(hMutex);
         return 1;
     }
 
@@ -117,6 +128,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     // Cleanup
     UnhookWindowsHookEx(hHook);
+    ReleaseMutex(hMutex);
+    CloseHandle(hMutex);
 
     return 0;
 }
