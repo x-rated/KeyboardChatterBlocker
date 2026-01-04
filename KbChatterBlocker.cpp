@@ -2,33 +2,31 @@
 #include <unordered_map>
 
 constexpr DWORD CHATTER_THRESHOLD_MS = 100;
-
 HHOOK g_hook = nullptr;
+
+// poslední stisky jen pro skutečné key down
 std::unordered_map<DWORD, DWORD> lastPressTime;
 
 LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
-    if (nCode == HC_ACTION && wParam == WM_KEYDOWN)
-    {
-        KBDLLHOOKSTRUCT* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
-        DWORD key = kb->vkCode;
+    if (nCode != HC_ACTION || wParam != WM_KEYDOWN)
+        return CallNextHookEx(g_hook, nCode, wParam, lParam);
 
-        // ignoruj opakované stisky při držení klávesy
-        if (kb->flags & 0x4000) // LLKHF_REPEAT
-            return CallNextHookEx(g_hook, nCode, wParam, lParam);
+    KBDLLHOOKSTRUCT* kb = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam);
 
-        DWORD now = GetTickCount();
-        auto it = lastPressTime.find(key);
+    // ignoruj všechny opakované stisky při držení
+    if (kb->flags & 0x4000)
+        return CallNextHookEx(g_hook, nCode, wParam, lParam);
 
-        if (it != lastPressTime.end())
-        {
-            // jen pokud skutečně stisknuto znovu v kratkém čase
-            if (now - it->second < CHATTER_THRESHOLD_MS)
-                return 1; // blokuj chatter
-        }
+    DWORD key = kb->vkCode;
+    DWORD now = GetTickCount();
 
-        lastPressTime[key] = now;
-    }
+    auto it = lastPressTime.find(key);
+    if (it != lastPressTime.end() && now - it->second < CHATTER_THRESHOLD_MS)
+        return 1; // blokuj chatter
+
+    // update timestamp jen pro první stisk
+    lastPressTime[key] = now;
 
     return CallNextHookEx(g_hook, nCode, wParam, lParam);
 }
@@ -36,8 +34,7 @@ LRESULT CALLBACK KeyboardProc(int nCode, WPARAM wParam, LPARAM lParam)
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR, int)
 {
     g_hook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, hInst, 0);
-    if (!g_hook)
-        return 1;
+    if (!g_hook) return 1;
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0))
