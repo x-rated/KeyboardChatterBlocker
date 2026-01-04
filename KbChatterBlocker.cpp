@@ -24,8 +24,10 @@ std::unordered_map<DWORD, KeyState> keyStates;
 HHOOK hHook = NULL;
 HWND hStatusWindow = NULL;
 HWND hStatusText = NULL;
+HWND hLogPathText = NULL;
 int totalBlocked = 0;
 std::ofstream logFile;
+std::wstring logFilePath;
 
 void LogToFile(const std::wstring& message) {
     if (!logFile.is_open()) {
@@ -200,7 +202,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         L"KbChatterBlockerClass",
         L"Keyboard Chatter Blocker - Diagnostic Mode",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
-        CW_USEDEFAULT, CW_USEDEFAULT, 500, 250,
+        CW_USEDEFAULT, CW_USEDEFAULT, 500, 280,
         NULL, NULL, hInstance, NULL
     );
 
@@ -238,17 +240,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         10, 130, 470, 40,
         hStatusWindow, NULL, hInstance, NULL);
 
+    hLogPathText = CreateWindow(L"STATIC", L"Log file: ...",
+        WS_VISIBLE | WS_CHILD | SS_LEFT,
+        10, 175, 470, 20,
+        hStatusWindow, NULL, hInstance, NULL);
+
     // Create close button
     CreateWindow(L"BUTTON", L"Close && Exit",
         WS_VISIBLE | WS_CHILD | BS_PUSHBUTTON,
-        200, 180, 100, 25,
+        200, 200, 100, 25,
         hStatusWindow, (HMENU)1, hInstance, NULL);
 
     ShowWindow(hStatusWindow, nCmdShow);
     UpdateWindow(hStatusWindow);
 
+    // Get executable path and create log file in same directory
+    wchar_t exePath[MAX_PATH];
+    GetModuleFileName(NULL, exePath, MAX_PATH);
+    std::wstring exeDir(exePath);
+    size_t lastSlash = exeDir.find_last_of(L"\\/");
+    if (lastSlash != std::wstring::npos) {
+        exeDir = exeDir.substr(0, lastSlash);
+    }
+    logFilePath = exeDir + L"\\KbChatterBlocker_log.txt";
+    
+    // Convert to narrow string for ofstream
+    std::string logFilePathNarrow(logFilePath.begin(), logFilePath.end());
+    
     // Initialize log file
-    logFile.open("C:\\KbChatterBlocker_log.txt", std::ios::trunc);
+    logFile.open(logFilePathNarrow, std::ios::trunc);
     if (logFile.is_open()) {
         logFile << "=== Keyboard Chatter Blocker Log ===" << std::endl;
         logFile << "Initial Threshold: " << INITIAL_CHATTER_THRESHOLD_MS << "ms" << std::endl;
@@ -257,6 +277,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         logFile << "Min Release Duration: " << MIN_RELEASE_DURATION_MS << "ms" << std::endl;
         logFile << "=====================================" << std::endl << std::endl;
         logFile.flush();
+        
+        // Show log file path in window
+        std::wstring logPathDisplay = L"Log file: " + logFilePath;
+        SetWindowText(hLogPathText, logPathDisplay.c_str());
+    } else {
+        SetWindowText(hLogPathText, L"Log file: ERROR - Could not create log file!");
     }
 
     // Install keyboard hook
