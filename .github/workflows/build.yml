@@ -11,18 +11,19 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Setup MSVC x64
-        uses: ilammy/msvcsetup@v1
+      - name: Setup Visual Studio
+        uses: microsoft/setup-msbuild@v1.1
         with:
-          arch: x64
-          vs-version: '2022'   # explicitně VS 2022
+          vs-version: 'latest'
 
       - name: Compile KbChatterBlocker
+        shell: cmd
         run: |
+          call "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
           cl /EHsc /MD /nologo /W3 /Fe:KbChatterBlocker.exe KbChatterBlocker.cpp /link /SUBSYSTEM:WINDOWS
 
       - name: Upload EXE
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: chatter-blocker-exe
           path: KbChatterBlocker.exe
