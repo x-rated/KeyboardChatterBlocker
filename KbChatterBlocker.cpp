@@ -4,7 +4,7 @@
 #include <string>
 
 // Configuration
-const int INITIAL_CHATTER_THRESHOLD_MS = 81;
+const int INITIAL_CHATTER_THRESHOLD_MS = 100;
 const int REPEAT_CHATTER_THRESHOLD_MS = 15;
 const int REPEAT_TRANSITION_DELAY_MS = 200;
 const int MIN_RELEASE_DURATION_MS = 20;
