@@ -3,7 +3,7 @@
 #include <chrono>
 
 // Configuration
-const int INITIAL_CHATTER_THRESHOLD_MS = 50;  // Strict threshold for first repeat
+const int INITIAL_CHATTER_THRESHOLD_MS = 81;  // Strict threshold for first repeat
 const int REPEAT_CHATTER_THRESHOLD_MS = 15;   // Lenient threshold for subsequent repeats
 const int REPEAT_TRANSITION_DELAY_MS = 200;   // Time to switch to repeat mode
 
