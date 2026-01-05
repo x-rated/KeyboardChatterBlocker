@@ -7,19 +7,15 @@
 #include <sstream>
 
 // Configuration
-const int INITIAL_CHATTER_THRESHOLD_MS = 100;
+const int CHATTER_THRESHOLD_MS = 90;         // Block everything faster than this
 const int REPEAT_CHATTER_THRESHOLD_MS = 30;
 const int REPEAT_TRANSITION_DELAY_MS = 150;
-const int ABSOLUTE_MINIMUM_MS = 30;          // Only block the super obvious stuff
-const int CHATTER_WINDOW_MS = 300;           // Look back 300ms for chatter patterns
 
 struct KeyState {
     long long lastPressTime = 0;
     long long lastReleaseTime = 0;
     bool inRepeatMode = false;
     int blockedCount = 0;
-    int recentFastPresses = 0;      // Count of fast presses in recent window
-    long long lastFastPressTime = 0; // When we last saw a fast press
 };
 
 std::unordered_map<DWORD, KeyState> keyStates;
@@ -76,60 +72,12 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
 
         long long timeSincePress = currentTime - state.lastPressTime;
 
-        // ABSOLUTE CHATTER BLOCK: anything faster than 30ms is definitely chatter
-        if (timeSincePress < ABSOLUTE_MINIMUM_MS) {
-            state.blockedCount++;
-            totalBlocked++;
-            std::wstring status = L"✗ BLOCKED #" + std::to_wstring(totalBlocked) + 
-                                 L" VK" + std::to_wstring(vkCode) + 
-                                 L" | P→P:" + std::to_wstring(timeSincePress) + 
-                                 L"ms | ABSOLUTE-MINIMUM (too fast)";
-            UpdateStatus(status);
-            return true;
-        }
-
-        // Reset fast press counter if enough time has passed
-        if (currentTime - state.lastFastPressTime > CHATTER_WINDOW_MS) {
-            state.recentFastPresses = 0;
-        }
-
-        // CHATTER PATTERN DETECTION
-        // If this is a fast press (30-100ms), check if it's part of a chatter pattern
-        bool isFastPress = timeSincePress < INITIAL_CHATTER_THRESHOLD_MS;
-        
-        if (isFastPress) {
-            // Count this as a recent fast press
-            state.recentFastPresses++;
-            state.lastFastPressTime = currentTime;
-            
-            // If we've seen 2+ fast presses in a short window, it's likely chatter bouncing
-            // Intentional double-taps happen once, chatter keeps bouncing
-            if (state.recentFastPresses >= 2) {
-                state.blockedCount++;
-                totalBlocked++;
-                std::wstring status = L"✗ BLOCKED #" + std::to_wstring(totalBlocked) + 
-                                     L" VK" + std::to_wstring(vkCode) + 
-                                     L" | P→P:" + std::to_wstring(timeSincePress) + 
-                                     L"ms | CHATTER-PATTERN (bounce " + std::to_wstring(state.recentFastPresses) + L")";
-                UpdateStatus(status);
-                return true;
-            }
-            
-            // First fast press in the window - could be intentional double-tap, allow it
-            state.lastPressTime = currentTime;
-            std::wstring status = L"✓ Allowed fast press VK" + std::to_wstring(vkCode) + 
-                                 L" | P→P:" + std::to_wstring(timeSincePress) + 
-                                 L"ms (first in window)";
-            UpdateStatus(status);
-            return false;
-        }
-
         // Check if we're in repeat/hold mode (holding a key down)
         int threshold;
         if (state.inRepeatMode) {
             threshold = REPEAT_CHATTER_THRESHOLD_MS;
         } else {
-            threshold = INITIAL_CHATTER_THRESHOLD_MS;
+            threshold = CHATTER_THRESHOLD_MS;
             if (timeSincePress > REPEAT_TRANSITION_DELAY_MS) {
                 state.inRepeatMode = true;
             }
@@ -141,14 +89,15 @@ bool ShouldBlockKey(DWORD vkCode, bool isKeyDown) {
             totalBlocked++;
             std::wstring status = L"✗ BLOCKED #" + std::to_wstring(totalBlocked) + 
                                  L" VK" + std::to_wstring(vkCode) + 
-                                 L" | P→P:" + std::to_wstring(timeSincePress) + L"ms";
+                                 L" | P→P:" + std::to_wstring(timeSincePress) + 
+                                 L"ms | Threshold:" + std::to_wstring(threshold) + L"ms";
             UpdateStatus(status);
             return true;
         }
 
         state.lastPressTime = currentTime;
-        std::wstring status = L"Normal press VK" + std::to_wstring(vkCode) + 
-                             L" (" + std::to_wstring(timeSincePress) + L"ms)";
+        std::wstring status = L"✓ Allowed VK" + std::to_wstring(vkCode) + 
+                             L" | P→P:" + std::to_wstring(timeSincePress) + L"ms";
         UpdateStatus(status);
         return false;
     } else {
@@ -245,8 +194,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         10, 10, 470, 20,
         hStatusWindow, NULL, hInstance, NULL);
 
-    std::wstring config = L"Pattern Detection: First fast press allowed, 2nd+ blocked | Window: " + 
-                         std::to_wstring(CHATTER_WINDOW_MS) + L"ms";
+    std::wstring config = L"Chatter Threshold: " + std::to_wstring(CHATTER_THRESHOLD_MS) + 
+                         L"ms | Repeat: " + std::to_wstring(REPEAT_CHATTER_THRESHOLD_MS) + L"ms";
     CreateWindow(L"STATIC", config.c_str(),
         WS_VISIBLE | WS_CHILD | SS_LEFT,
         10, 35, 470, 20,
@@ -262,7 +211,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         10, 80, 470, 40,
         hStatusWindow, NULL, hInstance, NULL);
 
-    CreateWindow(L"STATIC", L"Pattern detection: allows first fast double-tap,\nblocks repeated bouncing.",
+    CreateWindow(L"STATIC", L"Blocks all key presses faster than 90ms.\nAfter 150ms hold, switches to 30ms for repeats.",
         WS_VISIBLE | WS_CHILD | SS_LEFT,
         10, 130, 470, 40,
         hStatusWindow, NULL, hInstance, NULL);
