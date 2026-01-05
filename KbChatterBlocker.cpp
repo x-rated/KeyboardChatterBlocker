@@ -7,7 +7,7 @@
 #include <sstream>
 
 // Configuration
-const int CHATTER_THRESHOLD_MS = 90;         // Block everything faster than this
+const int CHATTER_THRESHOLD_MS = 85;         // Block everything faster than this
 const int REPEAT_CHATTER_THRESHOLD_MS = 30;
 const int REPEAT_TRANSITION_DELAY_MS = 150;
 
@@ -177,7 +177,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     hStatusWindow = CreateWindowEx(
         0,
         L"KbChatterBlockerClass",
-        L"Keyboard Chatter Blocker - Pattern Detection Mode",
+        L"Keyboard Chatter Blocker - Diagnostic Mode",
         WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX,
         CW_USEDEFAULT, CW_USEDEFAULT, 500, 280,
         NULL, NULL, hInstance, NULL
@@ -246,12 +246,11 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     // Initialize log file
     logFile.open(logFilePathNarrow, std::ios::trunc);
     if (logFile.is_open()) {
-        logFile << "=== Keyboard Chatter Blocker Log (Pattern Detection) ===" << std::endl;
-        logFile << "Absolute Minimum: " << ABSOLUTE_MINIMUM_MS << "ms" << std::endl;
-        logFile << "Fast Press Threshold: " << INITIAL_CHATTER_THRESHOLD_MS << "ms" << std::endl;
-        logFile << "Chatter Window: " << CHATTER_WINDOW_MS << "ms" << std::endl;
+        logFile << "=== Keyboard Chatter Blocker Log ===" << std::endl;
+        logFile << "Chatter Threshold: " << CHATTER_THRESHOLD_MS << "ms" << std::endl;
         logFile << "Repeat Threshold: " << REPEAT_CHATTER_THRESHOLD_MS << "ms" << std::endl;
-        logFile << "=========================================================" << std::endl << std::endl;
+        logFile << "Repeat Transition: " << REPEAT_TRANSITION_DELAY_MS << "ms" << std::endl;
+        logFile << "=====================================" << std::endl << std::endl;
         logFile.flush();
         
         // Show log file path in window
@@ -270,7 +269,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         MessageBox(hStatusWindow, errorMsg.c_str(), L"Error", MB_OK | MB_ICONERROR);
         UpdateStatus(L"Status: FAILED - Hook not installed!");
     } else {
-        UpdateStatus(L"Status: Running | Pattern detection active");
+        UpdateStatus(L"Status: Running | Chatter threshold: 90ms");
     }
 
     // Message loop
