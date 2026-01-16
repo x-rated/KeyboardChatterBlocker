@@ -3,7 +3,7 @@
 #include <chrono>
 
 // Configuration
-const int CHATTER_THRESHOLD_MS = 20;  // Block everything faster than this
+const int CHATTER_THRESHOLD_MS = 30;  // Block everything faster than this
 
 struct KeyState {
     long long lastPressTime = 0;
