@@ -2,7 +2,7 @@
 
 # Keyboard Chatter Blocker
 
-Blocks accidental double key presses (chatter) faster than 30 ms.
+Blocks accidental double key presses (chatter) faster than 40 ms.
 
 - No tray icon, no settings.
 - AMD64 binary.
