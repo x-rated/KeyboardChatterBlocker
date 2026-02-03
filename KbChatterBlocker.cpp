@@ -3,7 +3,7 @@
 #include <chrono>
 
 // Configuration
-const int CHATTER_THRESHOLD_MS = 40;         // Block everything faster than this
+const int CHATTER_THRESHOLD_MS = 50;         // Block everything faster than this
 const int REPEAT_TRANSITION_DELAY_MS = 150;  // Time to enter repeat mode
 
 int REPEAT_THRESHOLD_MS = 0;  // Will be set from system settings on startup
