@@ -5,7 +5,7 @@
 Blocks accidental double key presses (chatter) faster than 50 ms.
 
 - No tray icon, no settings.
-- AMD64 binary.
+- AMD64 and ARM64 binary.
 
 ## Usage
 
