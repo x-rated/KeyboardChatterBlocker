@@ -17,7 +17,6 @@ jobs:
       matrix:
         include:
           - arch: AMD64
-            msvc_arch: amd64
             artifact: KbChatterBlocker-AMD64.exe
           - arch: ARM64
             msvc_arch: amd64_arm64
@@ -29,7 +28,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSVC
+      - name: Setup MSVC (ARM64 only)
+        if: matrix.arch == 'ARM64'
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.msvc_arch }}
