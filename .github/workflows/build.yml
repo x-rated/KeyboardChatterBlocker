@@ -16,16 +16,14 @@ jobs:
     strategy:
       matrix:
         include:
-          - arch: x64
-            runner: windows-latest
+          - arch: AMD64
             msvc_arch: amd64
-            artifact: KbChatterBlocker-x64.exe
+            artifact: KbChatterBlocker-AMD64.exe
           - arch: ARM64
-            runner: windows-latest
             msvc_arch: amd64_arm64
             artifact: KbChatterBlocker-ARM64.exe
 
-    runs-on: ${{ matrix.runner }}
+    runs-on: windows-latest
     name: Build (${{ matrix.arch }})
 
     steps:
