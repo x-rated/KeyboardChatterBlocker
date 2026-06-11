@@ -1,15 +1,40 @@
 name: Build Chat-Blocker
 
 on:
+  workflow_dispatch:
   push:
+    branches: ["main"]
+    paths-ignore:
+      - '**.md'
+      - '.gitignore'
+      - 'LICENSE'
+  pull_request:
     branches: ["main"]
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+            msvc_arch: amd64
+            artifact: KbChatterBlocker-x64.exe
+          - arch: ARM64
+            runner: windows-latest
+            msvc_arch: amd64_arm64
+            artifact: KbChatterBlocker-ARM64.exe
+
+    runs-on: ${{ matrix.runner }}
+    name: Build (${{ matrix.arch }})
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
+
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.msvc_arch }}
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.1
@@ -17,10 +42,14 @@ jobs:
           vs-version: latest
 
       - name: Build EXE
-        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=x64
+        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=${{ matrix.arch }}
 
-      - name: Upload EXE
+      - name: Rename artifact
+        shell: pwsh
+        run: Rename-Item Release\${{ matrix.arch }}\KbChatterBlocker.exe ${{ matrix.artifact }}
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: chatter-blocker-exe
-          path: Release\x64\KbChatterBlocker.exe
+          name: ${{ matrix.artifact }}
+          path: Release\${{ matrix.arch }}\${{ matrix.artifact }}
