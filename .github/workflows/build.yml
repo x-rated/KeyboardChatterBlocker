@@ -34,17 +34,20 @@ jobs:
         with:
           arch: ${{ matrix.msvc_arch }}
 
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1.1
+        with:
+          vs-version: latest
+
       - name: Build EXE
-        shell: cmd
-        run: |
-          cl.exe /O1 /EHsc /W3 /MD /std:c++20 ^
-            /DUNICODE /D_UNICODE ^
-            /Fe:${{ matrix.artifact }} ^
-            KbChatterBlocker.cpp ^
-            user32.lib kernel32.lib
+        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=${{ matrix.arch }}
+
+      - name: Rename artifact
+        shell: pwsh
+        run: Rename-Item Release\${{ matrix.arch }}\KbChatterBlocker.exe ${{ matrix.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}
+          path: Release\${{ matrix.arch }}\${{ matrix.artifact }}
