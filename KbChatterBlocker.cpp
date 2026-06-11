@@ -23,22 +23,14 @@ long long GetCurrentTimeMs() {
 }
 
 void InitializeSystemKeyboardSettings() {
-    // Get keyboard repeat rate from Windows
-    // KeyboardSpeed ranges from 0 (slow, ~2.5 reps/sec) to 31 (fast, ~30 reps/sec)
     int keyboardSpeed = 0;
     SystemParametersInfo(SPI_GETKEYBOARDSPEED, 0, &keyboardSpeed, 0);
     
-    // Convert to milliseconds between repeats
-    // Formula: approximately 1000ms / (2.5 + speed * 0.88) 
-    // Speed 0 = ~400ms, Speed 31 = ~33ms
     float repsPerSecond = 2.5f + (keyboardSpeed * 0.88f);
     int repeatRateMs = (int)(1000.0f / repsPerSecond);
     
-    // Use HALF of the system repeat rate to ensure we don't block legitimate repeats
-    // This gives us headroom for timing variations
     REPEAT_THRESHOLD_MS = repeatRateMs / 2;
     
-    // Ensure minimum of 10ms
     if (REPEAT_THRESHOLD_MS < 10) {
         REPEAT_THRESHOLD_MS = 10;
     }
@@ -55,15 +47,12 @@ bool ShouldBlockKey(DWORD vkCode) {
 
     long long timeSincePress = currentTime - state.lastPressTime;
 
-    // Check if we should enter repeat mode
     if (timeSincePress > REPEAT_TRANSITION_DELAY_MS) {
         state.inRepeatMode = true;
     }
 
-    // Use different threshold for repeat mode
     int threshold = state.inRepeatMode ? REPEAT_THRESHOLD_MS : CHATTER_THRESHOLD_MS;
 
-    // Block if faster than threshold
     if (timeSincePress < threshold) {
         return true;
     }
@@ -78,25 +67,31 @@ LRESULT CALLBACK LowLevelKeyboardProc(int nCode, WPARAM wParam, LPARAM lParam) {
         DWORD vkCode = pKbdStruct->vkCode;
 
         bool isKeyDown = (wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN);
-        bool isKeyUp = (wParam == WM_KEYUP || wParam == WM_SYSKEYUP);
-        
-        // Reset repeat mode on key release
+        bool isKeyUp   = (wParam == WM_KEYUP   || wParam == WM_SYSKEYUP);
+
         if (isKeyUp) {
             keyStates[vkCode].inRepeatMode = false;
         }
-        
+
         if (isKeyDown && ShouldBlockKey(vkCode)) {
-            return 1; // Block the key
+            return 1;
         }
     }
 
     return CallNextHookEx(hHook, nCode, wParam, lParam);
 }
 
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
+    if (msg == WM_DESTROY) {
+        PostQuitMessage(0);
+        return 0;
+    }
+    return DefWindowProc(hwnd, msg, wParam, lParam);
+}
+
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
-    // Initialize keyboard settings from system
     InitializeSystemKeyboardSettings();
-    
+
     // Create mutex to prevent multiple instances
     HANDLE hMutex = CreateMutex(NULL, TRUE, L"KbChatterBlockerMutex");
     if (GetLastError() == ERROR_ALREADY_EXISTS) {
@@ -104,9 +99,26 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
         return 0;
     }
 
+    // Register a window class and create a hidden message window
+    // (makes the process identifiable and anchors the message loop to a real window)
+    WNDCLASSEX wc = {};
+    wc.cbSize        = sizeof(WNDCLASSEX);
+    wc.lpfnWndProc   = WndProc;
+    wc.hInstance     = hInstance;
+    wc.lpszClassName = L"KbChatterBlocker";
+    RegisterClassEx(&wc);
+
+    HWND hwnd = CreateWindowEx(
+        0, L"KbChatterBlocker", L"Keyboard Chatter Blocker",
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
+        NULL, NULL, hInstance, NULL
+    );
+    // Window stays hidden — we never call ShowWindow
+
     // Install keyboard hook
     hHook = SetWindowsHookEx(WH_KEYBOARD_LL, LowLevelKeyboardProc, NULL, 0);
-    
+
     if (hHook == NULL) {
         ReleaseMutex(hMutex);
         CloseHandle(hMutex);
