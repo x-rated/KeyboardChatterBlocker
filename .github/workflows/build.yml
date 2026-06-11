@@ -17,8 +17,10 @@ jobs:
       matrix:
         include:
           - arch: AMD64
+            msbuild_platform: x64
             artifact: KbChatterBlocker-AMD64.exe
           - arch: ARM64
+            msbuild_platform: ARM64
             msvc_arch: amd64_arm64
             artifact: KbChatterBlocker-ARM64.exe
 
@@ -40,14 +42,14 @@ jobs:
           vs-version: latest
 
       - name: Build EXE
-        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=${{ matrix.arch }}
+        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=${{ matrix.msbuild_platform }}
 
       - name: Rename artifact
         shell: pwsh
-        run: Rename-Item Release\${{ matrix.arch }}\KbChatterBlocker.exe ${{ matrix.artifact }}
+        run: Rename-Item Release\${{ matrix.msbuild_platform }}\KbChatterBlocker.exe ${{ matrix.artifact }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: Release\${{ matrix.arch }}\${{ matrix.artifact }}
+          path: Release\${{ matrix.msbuild_platform }}\${{ matrix.artifact }}
