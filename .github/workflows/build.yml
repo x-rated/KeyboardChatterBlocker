@@ -17,10 +17,9 @@ jobs:
       matrix:
         include:
           - arch: AMD64
-            msbuild_platform: x64
+            msvc_arch: amd64
             artifact: KbChatterBlocker-AMD64.exe
           - arch: ARM64
-            msbuild_platform: ARM64
             msvc_arch: amd64_arm64
             artifact: KbChatterBlocker-ARM64.exe
 
@@ -30,35 +29,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup MSVC (ARM64 only)
-        if: matrix.arch == 'ARM64'
+      - name: Setup MSVC
         uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: ${{ matrix.msvc_arch }}
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.1
-        with:
-          vs-version: latest
-
-      - name: Diagnostics
-        shell: pwsh
-        run: |
-          $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
-          Write-Host "=== MSVC Toolsets ==="
-          Get-ChildItem "$vsPath\VC\Tools\MSVC" | Select-Object Name
-          Write-Host "=== MSBuild Platforms ==="
-          Get-ChildItem "$vsPath\MSBuild\Microsoft\VC" | Select-Object Name
-
       - name: Build EXE
-        run: msbuild KbChatterBlocker.sln /p:Configuration=Release /p:Platform=${{ matrix.msbuild_platform }}
-
-      - name: Rename artifact
-        shell: pwsh
-        run: Rename-Item Release\${{ matrix.msbuild_platform }}\KbChatterBlocker.exe ${{ matrix.artifact }}
+        shell: cmd
+        run: |
+          cl.exe /O1 /EHsc /W3 /MD /std:c++20 ^
+            /DUNICODE /D_UNICODE ^
+            /Fe:${{ matrix.artifact }} ^
+            KbChatterBlocker.cpp ^
+            user32.lib kernel32.lib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: Release\${{ matrix.msbuild_platform }}\${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}
